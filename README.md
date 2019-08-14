@@ -1,7 +1,7 @@
 
 # metti-printer
 
-## Install
+## Deployment
 
 Install [python-escpos](https://github.com/python-escpos/python-escpos) from GitHub.
 

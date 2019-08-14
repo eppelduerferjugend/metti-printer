@@ -1,6 +1,6 @@
 
 # Destination config
-destination = 2
+destination = 1
 polling_interval = 5
 
 # Printer facts
@@ -8,6 +8,7 @@ printer_vendor_id = 0x1a86
 printer_product_id = 0x7584
 printer_profile = 'TM-T88IV'
 printer_timeout = 500 # in ms
+printer_width = 43
 
 # Service integration
 service_root = 'https://metti.spaghettisfest.lu/api'

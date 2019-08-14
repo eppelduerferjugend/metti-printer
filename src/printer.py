@@ -1,14 +1,14 @@
 
-import threading, time
+import threading, time, textwrap
 import state
 from escpos import printer
-from datetime import datetime
 
 class Printer_Thread(threading.Thread):
 
-  def __init__(self, vendorId, productId, profile, timeout=1000):
+  def __init__(self, vendorId, productId, profile, timeout=1000, width=43):
     threading.Thread.__init__(self)
     self.profile = profile
+    self.width = width
     self.printer = printer.Usb(vendorId, productId, profile=profile, timeout=timeout)
     self.stop_flag = threading.Event()
 
@@ -24,6 +24,7 @@ class Printer_Thread(threading.Thread):
 
         try:
           # Try to render and print order
+          print('[Printer] Rendering receipt for order id {}.'.format(order['id']))
           receipt = self.render_order(order)
 
           print('[Printer] Printing receipt for order id {}.'.format(order['id']))
@@ -47,6 +48,13 @@ class Printer_Thread(threading.Thread):
 
   def render_order(self, order):
     """ Renders a single order on a receipt """
+
+    # Magic wrapping numbers
+    count_width = 5
+    price_width = 8
+    name_width = self.width - count_width - price_width
+    name_wrapper = textwrap.TextWrapper(width=name_width)
+
     p = printer.Dummy(profile=self.profile)
 
     # Header image
@@ -57,25 +65,43 @@ class Printer_Thread(threading.Thread):
     p.set(align='center', double_width=True, double_height=True)
     p.text('Dësch {}\n'.format(order['table']))
 
-    # Date, time and number
+    # Date time and number
     p.set(align='center', double_width=False, double_height=False)
-    order_date = datetime.fromtimestamp(order['created_at_u'])
-    order_date_formatted = order_date.strftime('%d.%m.%Y %H:%M:%S')
-    p.text('\n{} #{}\n\n'.format(order_date_formatted, order['number']))
+    p.text('\n{} #{}\n\n'.format(order['created_at'], order['number']))
 
     # Item list
-    p.set(align='left', double_width=False, double_height=False)
-
+    p.set(align='left')
     for item in order['items']:
-      p.text('{:4}x {}\n'.format(item['quantity'], item['name']))
+      # Item count
+      p.text('{:2}x  '.format(item['quantity']))
+
+      # Wrap item name in name column
+      name_lines = name_wrapper.wrap(text=item['name'])
+
+      # First name line
+      p.text(name_lines[0])
+
+      # Following name lines with left padding
+      i = 1
+      while i < len(name_lines):
+        p.text('\n{}{}'.format(' ' * count_width, name_lines[i]))
+        i += 1
+
+      # Price tag with left padding
+      if item['price'] != 0:
+        price_padding = name_width - len(name_lines[-1])
+        p.text('{}{:7.2f}'.format(' ' * price_padding, item['price']))
+
+      p.text('\n')
 
     # Comment
+    p.set(align='left')
     p.text('\n')
     if order['comment']:
       p.text('Kommentar: {}\n\n'.format(order['comment']))
 
     # Details
-    p.text('Total: {:3.2f}€\n'.format(order['order_price']))
+    p.text('Total: {:4.2f}€\n'.format(order['order_price']))
     p.text('Service: {}\n'.format(order['waiter']))
 
     # Cut here

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 
 import threading, time, signal, requests
 import state, constants
@@ -65,7 +66,8 @@ def main():
       constants.printer_vendor_id,
       constants.printer_product_id,
       constants.printer_profile,
-      constants.printer_timeout)
+      constants.printer_timeout,
+      constants.printer_width)
     printer_thread.start()
 
     # Daemon loop
@@ -103,5 +105,6 @@ def main():
   except ServiceExit as e:
     printer_thread.stop()
 
+# Main call
 if __name__ == '__main__':
   main()
