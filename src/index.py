@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import threading, time, signal, requests
+import time, signal, requests
 import state, constants
 from printer import Printer_Thread
 
@@ -12,21 +12,20 @@ class ServiceExit(Exception):
     pass
 
 def shutdown_handler(signum, frame):
-  """ Raises an exception to gracefully end the process. """
+  """ Raise an exception to gracefully end the process """
   print('Caught signal {}'.format(signum))
   raise ServiceExit
 
-def complete_orders(orders):
-  """ Marks the given order objects as completed. """
-  order_ids = list(map(lambda order: order['id'], orders))
-  print('Mark orders {} as completed.'.format(', '.join(map(str, order_ids))))
+def service_complete_order(order_id):
+  """ Mark the given order id as completed """
+  print('Mark order {} as completed.'.format(order_id))
 
   try:
     response = requests.request(
-      'POST',
-      constants.service_root + '/order/complete',
+      'PUT',
+      constants.service_root + '/api/v1/orders/' + str(order_id),
       auth=constants.service_auth,
-      json=order_ids)
+      json={ 'state': 'Completed' })
 
     return response.status_code == 200
 
@@ -34,19 +33,19 @@ def complete_orders(orders):
     print('Marking orders failed: {}'.format(str(err)))
     return False
 
-def fetch_incomplete_orders(destination):
-  """ Fetches incomplete orders for the given destination from the service. """
+def service_fetch_pending_orders(store_id):
+  """ Fetch pending orders for the given store id """
   try:
     response = requests.request(
       'GET',
-      constants.service_root + '/order/incomplete/' + str(destination),
+      constants.service_root + '/api/v1/orders?state=Pending&storeId=' + str(store_id),
       auth=constants.service_auth)
 
     if response.status_code == 200:
       return response.json()
 
   except Exception as err:
-    print('Fetching incomplete orders failed: {}'.format(str(err)))
+    print('Fetching pending orders failed: {}'.format(str(err)))
 
   return []
 
@@ -72,19 +71,16 @@ def main():
 
     # Daemon loop
     while True:
-
       # Mark printed orders as completed
-      printer_index = state.printer_index
-      if state.completion_index < printer_index:
-        printed_orders = state.order_queue[state.completion_index:printer_index]
-        if complete_orders(printed_orders):
-          state.completion_index = printer_index
+      while state.completion_index < state.printer_index:
+        if service_complete_order(state.order_queue[state.completion_index]['id']):
+          state.completion_index += 1
         else:
-          time.sleep(2)
-          continue
+          # Try again in next polling tick
+          break
 
       # Check for new orders
-      orders = fetch_incomplete_orders(constants.destination)
+      orders = service_fetch_pending_orders(constants.store_id)
 
       # Retrieve orders that are in progress
       active_orders = state.order_queue[state.completion_index:]

@@ -2,6 +2,7 @@
 import threading, time, textwrap
 import state
 from escpos import printer
+import datetime
 
 class Printer_Thread(threading.Thread):
 
@@ -63,11 +64,12 @@ class Printer_Thread(threading.Thread):
 
     # Table
     p.set(align='center', double_width=True, double_height=True)
-    p.text('Dësch {}\n'.format(order['table']))
+    p.text('Dësch {}\n'.format(order['table']['name']))
 
     # Date time and number
     p.set(align='center', double_width=False, double_height=False)
-    p.text('\n{} #{}\n\n'.format(order['created_at'], order['number']))
+    created_at = datetime.datetime.fromisoformat(order['createdAt'].replace('Z', '+00:00'))
+    p.text('\n{} #{}\n\n'.format(created_at.strftime('%d.%m.%Y %H:%M'), order['number']))
 
     # Item list
     p.set(align='left')
@@ -76,7 +78,7 @@ class Printer_Thread(threading.Thread):
       p.text('{:2}x  '.format(item['quantity']))
 
       # Wrap item name in name column
-      name_lines = name_wrapper.wrap(text=item['name'])
+      name_lines = name_wrapper.wrap(text=item['product']['name'])
 
       # First name line
       p.text(name_lines[0])
@@ -88,21 +90,27 @@ class Printer_Thread(threading.Thread):
         i += 1
 
       # Price tag with left padding
-      if item['price'] != 0:
+      if item['product']['unitPrice'] != 0:
         price_padding = name_width - len(name_lines[-1])
-        p.text('{}{:7.2f}'.format(' ' * price_padding, item['price']))
+        p.text('{}{:7.2f}'.format(' ' * price_padding, item['product']['unitPrice'] / 100))
 
       p.text('\n')
+
 
     # Comment
     p.set(align='left')
     p.text('\n')
-    if order['comment']:
-      p.text('Kommentar: {}\n\n'.format(order['comment']))
+    if order['note']:
+      p.text('Kommentar: {}\n\n'.format(order['note']))
+
+    # Calculate order price
+    order_price = 0
+    for item in order['items']:
+      order_price += item['quantity'] * item['product']['unitPrice']
 
     # Details
-    p.text('Total: {:4.2f}€\n'.format(order['order_price']))
-    p.text('Service: {}\n'.format(order['waiter']))
+    p.text('Total: {:4.2f}\n'.format(order_price / 100))
+    p.text('Service: {}\n'.format(order['assignee']['name']))
 
     # Cut here
     p.cut()
