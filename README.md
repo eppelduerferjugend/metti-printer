@@ -1,9 +1,11 @@
 
 # metti-printer
 
-## Deployment
+## Provisioning
 
 Install [python-escpos](https://github.com/python-escpos/python-escpos) from GitHub.
+
+We assume the repository to be placed at `/srv/metti-printer` on e.g. a Raspberry Pi.
 
 ```bash
 sudo apt-get install python3 python3-pip libopenjp2-7
@@ -29,6 +31,24 @@ LABEL="datalogger_rules_end"
 ```
 
 In it, replace `VENDOR_ID` by the vendor id and `PRODUCT_ID` by the product id of the USB device that can be determined by running `lsusb` and identifying the USB printer.
+
+To make the python printer server start at boot time as a daemon, install it as a service like so:
+
+```bash
+# Configure service
+sudo ln -s /srv/metti-printer/provisioning/metti-printer.service /etc/systemd/system/metti-printer.service
+
+# Enable service
+sudo systemctl enable metti-printer
+sudo systemctl daemon-reload
+
+# (Re-)start service
+sudo systemctl start metti-printer
+sudo systemctl restart metti-printer
+
+# Show service status
+sudo systemctl status metti-printer
+```
 
 ## See also
 
