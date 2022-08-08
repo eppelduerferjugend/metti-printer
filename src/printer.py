@@ -11,6 +11,7 @@ class Printer_Thread(threading.Thread):
     self.profile = profile
     self.width = width
     self.printer = printer.Usb(vendorId, productId, profile=profile, timeout=timeout)
+    self.printer.line_spacing(50)
     self.stop_flag = threading.Event()
 
   def run(self):
@@ -51,10 +52,15 @@ class Printer_Thread(threading.Thread):
     """ Renders a single order on a receipt """
 
     # Magic wrapping numbers
-    count_width = 5
-    price_width = 8
+    count_width = 7
+    price_width = 10
     name_width = self.width - count_width - price_width
     name_wrapper = textwrap.TextWrapper(width=name_width)
+
+    # Calculate order price
+    order_price = 0
+    for item in order['items']:
+      order_price += item['quantity'] * item['product']['unitPrice']
 
     p = printer.Dummy(profile=self.profile)
 
@@ -69,47 +75,52 @@ class Printer_Thread(threading.Thread):
     # Date time and number
     p.set(align='center', double_width=False, double_height=False)
     created_at = datetime.datetime.fromisoformat(order['createdAt'].replace('Z', '+00:00'))
-    p.text('\n{} #{}\n\n'.format(created_at.strftime('%d.%m.%Y %H:%M'), order['number']))
+    p.text('\n{} {}\n\n'.format(created_at.strftime('%d.%m.%Y %H:%M'), order['number']))
 
     # Item list
     p.set(align='left')
-    for item in order['items']:
-      # Item count
-      p.text('{:2}x  '.format(item['quantity']))
-
+    p.text('┌────┬─{}─┬───────┐\n'.format(name_width * '─'))
+    for index, item in enumerate(order['items']):
       # Wrap item name in name column
       name_lines = name_wrapper.wrap(text=item['product']['name'])
 
-      # First name line
-      p.text(name_lines[0])
-
-      # Following name lines with left padding
-      i = 1
+      i = 0
       while i < len(name_lines):
-        p.text('\n{}{}'.format(' ' * count_width, name_lines[i]))
+        # Quantity
+        if i == 0:
+          p.text('│ {:2} │ '.format(item['quantity']))
+        else:
+          p.text('│    │ ')
+
+        # Wrapped text
+        price_padding = name_width - len(name_lines[i])
+        p.text('{}{}'.format(name_lines[i], ' ' * price_padding))
+
+        if i == 0:
+          if item['product']['unitPrice'] != 0:
+            p.text(' │ {:5.2f} │\n'.format(item['product']['unitPrice'] / 100))
+          else:
+            p.text(' │ ╌╌╌╌╌ │\n')
+        else:
+          p.text(' │       │\n')
+
         i += 1
 
-      # Price tag with left padding
-      if item['product']['unitPrice'] != 0:
-        price_padding = name_width - len(name_lines[-1])
-        p.text('{}{:7.2f}'.format(' ' * price_padding, item['product']['unitPrice'] / 100))
+      if index < len(order['items']) - 1:
+        p.text('├────┼─{}─┼───────┤\n'.format(name_width * '─'))
+      else:
+        p.text('╞════╧═{}═╧═══════╡\n'.format(name_width * '═'))
 
-      p.text('\n')
+    # Total
+    padding = self.width - 10 - 10
+    p.text('│ Total {}{:10.2f} │\n'.format(padding * ' ', order_price / 100))
+    p.text('└──────{}─────────┘\n'.format(name_width * '─'))
 
-
-    # Comment
+    # Details
     p.set(align='left')
     p.text('\n')
     if order['note']:
-      p.text('Kommentar: {}\n\n'.format(order['note']))
-
-    # Calculate order price
-    order_price = 0
-    for item in order['items']:
-      order_price += item['quantity'] * item['product']['unitPrice']
-
-    # Details
-    p.text('Total: {:4.2f}\n'.format(order_price / 100))
+      p.text('Kommentar: {}\n'.format(order['note']))
     p.text('Service: {}\n'.format(order['assignee']['name']))
 
     # Cut here
