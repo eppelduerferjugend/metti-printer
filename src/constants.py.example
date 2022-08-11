@@ -1,6 +1,6 @@
 
 # Destination config
-store_id = 1
+printer_name = 'bar'
 polling_interval = 5
 
 # Printer facts
@@ -12,4 +12,4 @@ printer_width = 42
 
 # Service integration
 service_root = 'https://metti.spaghettisfest.lu'
-service_auth = ('crew', '')
+service_auth = ('', '')

@@ -16,38 +16,38 @@ def shutdown_handler(signum, frame):
   print('Caught signal {}'.format(signum))
   raise ServiceExit
 
-def service_complete_order(order_id):
-  """ Mark the given order id as completed """
-  print('Mark order {} as completed.'.format(order_id))
-
-  try:
-    response = requests.request(
-      'PUT',
-      constants.service_root + '/api/v1/orders/' + str(order_id),
-      auth=constants.service_auth,
-      json={ 'state': 'Completed' })
-
-    return response.status_code == 200
-
-  except Exception as err:
-    print('Marking orders failed: {}'.format(str(err)))
-    return False
-
-def service_fetch_pending_orders(store_id):
-  """ Fetch pending orders for the given store id """
+def service_fetch_pending_jobs(printer_name):
+  """ Fetch pending printer jobs for the given printer name """
   try:
     response = requests.request(
       'GET',
-      constants.service_root + '/api/v1/orders?state=Pending&storeId=' + str(store_id),
+      constants.service_root + '/api/v1/printer-jobs?state=pending&printer=' + printer_name,
       auth=constants.service_auth)
 
     if response.status_code == 200:
       return response.json()
 
   except Exception as err:
-    print('Fetching pending orders failed: {}'.format(str(err)))
+    print('Fetching pending jobs failed: {}'.format(str(err)))
 
   return []
+
+def service_complete_job(job_id):
+  """ Mark the given job id as completed """
+  print('Mark job {} as completed.'.format(job_id))
+
+  try:
+    response = requests.request(
+      'PUT',
+      constants.service_root + '/api/v1/printer-jobs/' + str(job_id),
+      auth=constants.service_auth,
+      json={ 'state': 'completed' })
+
+    return response.status_code == 200
+
+  except Exception as err:
+    print('Marking job as completed failed: {}'.format(str(err)))
+    return False
 
 def main():
   # Register shutdown handlers
@@ -55,7 +55,7 @@ def main():
   signal.signal(signal.SIGINT, shutdown_handler)
 
   # Initial state
-  state.order_queue = []
+  state.job_queue = []
   state.printer_index = 0
   state.completion_index = 0
 
@@ -71,30 +71,30 @@ def main():
 
     # Daemon loop
     while True:
-      # Mark printed orders as completed
+      # Mark printed jobs as completed
       while state.completion_index < state.printer_index:
-        if service_complete_order(state.order_queue[state.completion_index]['id']):
+        if service_complete_job(state.job_queue[state.completion_index]['id']):
           state.completion_index += 1
         else:
           # Try again in next polling tick
           break
 
-      # Check for new orders
-      orders = service_fetch_pending_orders(constants.store_id)
+      # Retrieve jobs that are in progress
+      active_jobs = state.job_queue[state.completion_index:]
+      active_job_ids = list(map(lambda job: job['id'], active_jobs))
 
-      # Retrieve orders that are in progress
-      active_orders = state.order_queue[state.completion_index:]
-      active_order_ids = list(map(lambda order: order['id'], active_orders))
+      # Check for new jobs
+      jobs = service_fetch_pending_jobs(constants.printer_name)
 
-      for order in orders:
-        # Append order to queue if it is not in the print queue
-        # If the order has been completed and reopened in the past
+      for job in jobs:
+        # Append job to queue if it is not in the print queue
+        # If the job has been completed and reopened in the past
         # it gets added again to the printing queue
-        if not order['id'] in active_order_ids:
-          print('Found new incomplete order id {}.'.format(order['id']))
-          state.order_queue.append(order)
+        if not job['id'] in active_job_ids:
+          print('Found new incomplete job id {}.'.format(job['id']))
+          state.job_queue.append(job)
         else:
-          print('Ignore order id {} as it is currently being printed.'.format(order['id']))
+          print('Ignore job id {} as it is currently being printed.'.format(job['id']))
 
       time.sleep(constants.polling_interval)
 

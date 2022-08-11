@@ -21,6 +21,12 @@ Configure `src/constants.py`:
 cp src/constants.py.example src/constants.py
 ```
 
+Sync changes from local repostory to the Raspberry Pi:
+
+```bash
+rsync -aP --delete . pi@hostname:/srv/metti-printer/
+```
+
 To grant permission to the printer via USB without being root, add the file `/etc/udev/rules.d/10-crew.rules` with the following content:
 
 ```text
