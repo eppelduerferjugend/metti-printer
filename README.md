@@ -8,7 +8,9 @@ Install [python-escpos](https://github.com/python-escpos/python-escpos) from Git
 We assume the repository to be placed at `/srv/metti-printer` on e.g. a Raspberry Pi.
 
 ```bash
-sudo apt-get install python3 python3-pip libopenjp2-7
+sudo apt-get update
+sudo apt-get upgrade
+sudo apt-get install python3 python3-pip libopenjp2-7 git
 
 # Run with the same user the script is run
 pip3 install requests
