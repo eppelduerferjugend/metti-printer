@@ -21,8 +21,9 @@ def service_fetch_pending_jobs(printer_name):
   try:
     response = requests.request(
       'GET',
-      constants.service_root + '/api/v1/printer-jobs?state=pending&printer=' + printer_name,
-      auth=constants.service_auth)
+      constants.service_root + '/printers/' + printer_name + '/jobs',
+      headers={"Authorization": "Bearer " + constants.service_auth_token}
+    )
 
     if response.status_code == 200:
       return response.json()
@@ -32,17 +33,18 @@ def service_fetch_pending_jobs(printer_name):
 
   return []
 
-def service_complete_job(job_id):
+def service_complete_job(printer_name, job_id):
   """ Mark the given job id as completed """
   print('Mark job {} as completed.'.format(job_id))
 
   try:
     response = requests.request(
       'PUT',
-      constants.service_root + '/api/v1/printer-jobs/' + str(job_id),
-      auth=constants.service_auth,
+      constants.service_root + '/printers/' + printer_name + '/jobs/' + str(job_id),
+      headers={"Authorization": "Bearer " + constants.service_auth_token},
       json={ 'state': 'completed' })
-
+    if response.status_code != 200:
+      raise Exception("Non ok status code received: " + str(response.status_code))
     return response.status_code == 200
 
   except Exception as err:
@@ -73,7 +75,7 @@ def main():
     while True:
       # Mark printed jobs as completed
       while state.completion_index < state.printer_index:
-        if service_complete_job(state.job_queue[state.completion_index]['id']):
+        if service_complete_job(constants.printer_name, state.job_queue[state.completion_index]['id']):
           state.completion_index += 1
         else:
           # Try again in next polling tick

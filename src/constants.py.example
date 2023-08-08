@@ -11,5 +11,5 @@ printer_timeout = 1500 # in ms
 printer_width = 42
 
 # Service integration
-service_root = 'https://metti.spaghettisfest.lu'
-service_auth = ('', '')
+service_root = 'https://api.kescht.lu'
+service_auth_token = ''

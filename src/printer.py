@@ -59,7 +59,7 @@ class Printer_Thread(threading.Thread):
 
     # Content
     p.set(align='left')
-    p.text(job['content'])
+    p.text(job['document']['text'])
     p.text('\n')
 
     # Cut here
