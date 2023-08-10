@@ -1,5 +1,5 @@
 
-import threading, time
+import threading, time, requests, hashlib, os
 import state
 from escpos import printer
 
@@ -52,20 +52,46 @@ class Printer_Thread(threading.Thread):
 
     p = printer.Dummy(profile=self.profile)
 
-    # Header image
-    p.set(align='center')
-    p.image('assets/header.png')
-    p.text('\n')
-
-    # Content
-    p.set(align='left')
-    p.text(job['document']['text'])
-    p.text('\n')
-
-    # Cut here
-    p.cut()
+    # Print each action
+    for action in job['document']['actions']:
+      if action['type'] == 'text':
+        self.render_text(p, action)
+      elif action['type'] == 'cut':
+        self.render_cut(p, action)
+      elif action['type'] == 'image':
+        self.render_image(p, action)
 
     return p.output
+
+  def render_text(self, p, text_action):
+    p.set(align='left')
+    p.text(text_action['text'])
+
+  def render_cut(self, p, cut_action):
+    p.cut()
+
+  def render_image(self, p, image_action):
+    image_url = image_action['imageUrl'].encode('utf-8')
+
+    # Create local image path based on a hash of the image url
+    image_url_hash = hashlib.sha1(image_url).hexdigest()
+    local_image_path = os.path.join('tmp', image_url_hash)
+
+    # Download image, if necessary
+    if not os.path.exists(local_image_path):
+      try:
+        image_response = requests.get(image_url)
+        if image_response.status_code != 200:
+          raise Exception('Received unexpected HTTP status code {}'.format(str(image_response.status_code)))
+        if not os.path.exists('tmp'):
+          os.makedirs('tmp')
+        with open(local_image_path, 'wb') as image_file:
+          image_file.write(image_response.content)
+      except Exception as err:
+        raise Exception('Rendering image action failed: {}'.format(str(err)))
+
+    # Print image
+    p.image(local_image_path, center=True)
 
   def stop(self):
     print('[Printer] Stopping printer thread.')
