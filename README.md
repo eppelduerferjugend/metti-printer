@@ -56,6 +56,9 @@ sudo systemctl restart metti-printer
 
 # Show service status
 sudo systemctl status metti-printer
+
+# Follow service logs
+journalctl -u metti-printer.service -f
 ```
 
 ## See also

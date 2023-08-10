@@ -88,7 +88,9 @@ class Printer_Thread(threading.Thread):
         with open(local_image_path, 'wb') as image_file:
           image_file.write(image_response.content)
       except Exception as err:
-        raise Exception('Rendering image action failed: {}'.format(str(err)))
+        print('Rendering image action failed: {}'.format(str(err)))
+        # Skip printing the image, if it cannot be accessed
+        return
 
     # Print image
     p.image(local_image_path, center=True)
