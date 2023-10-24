@@ -11,5 +11,5 @@ printer_timeout = 1500 # in ms
 printer_width = 42
 
 # Service integration
-service_root = 'https://api.kescht.lu'
+service_root = 'https://api.kescht.lu/v1'
 service_auth_token = ''
