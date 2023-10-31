@@ -10,11 +10,12 @@ We assume the repository to be placed at `/srv/metti-printer` on e.g. a Raspberr
 ```bash
 sudo apt-get update
 sudo apt-get upgrade
-sudo apt-get install python3 python3-pip libopenjp2-7 git
+sudo apt-get install python3 python3-pip python3-full libopenjp2-7 git
 
-# Run with the same user the script is run
-pip3 install requests
-pip3 install git+https://github.com/python-escpos/python-escpos.git
+sudo mkdir /opt/python-venv
+python3 -m venv /opt/python-venv/
+/opt/python-venv/bin/pip3 install requests pyusb
+/opt/python-venv/bin/pip3 pip3 install git+https://github.com/python-escpos/python-escpos.git
 ```
 
 Configure `src/constants.py`:

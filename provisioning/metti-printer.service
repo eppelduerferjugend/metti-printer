@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 src/index.py
+ExecStart=/opt/python-venv/bin/python src/index.py
 User=crew
 Group=root
 WorkingDirectory=/srv/metti-printer
